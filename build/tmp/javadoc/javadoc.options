@@ -1,0 +1,8 @@
+-classpath 'E:\\Data\\Documents\\_Development\\Java\\NEATLib\\build\\classes\\java\\main;E:\\Data\\Documents\\_Development\\Java\\NEATLib\\build\\resources\\main'
+-d 'E:\\Data\\Documents\\_Development\\Java\\NEATLib\\build\\docs\\javadoc'
+-doctitle 'NEATLib API'
+-quiet 
+-windowtitle 'NEATLib API'
+'E:\\Data\\Documents\\_Development\\Java\\NEATLib\\src\\main\\java\\NEATLib\\Main.java'
+'E:\\Data\\Documents\\_Development\\Java\\NEATLib\\src\\main\\java\\NEATLib\\NEAT.java'
+'E:\\Data\\Documents\\_Development\\Java\\NEATLib\\src\\main\\java\\NEATLib\\NEATNetwork.java'
