@@ -1,1 +1,1 @@
-NaiveNEAT
+Simple and naive implementation of a NEAT algorithm. Configured to be feed-forward only and with limited weight adjustment between generation. Bound to contain mistakes and probably has a high improvement space.
