@@ -3,50 +3,69 @@ package NEATLib;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class NEAT{
-    // IDEA: Make User changeable
-    /// Maximum delta between specimen
-    double MAX_DELTA = 2.0;
-    /// Importance of excess genes for the delta
+	//// DELTA PARAMETERS
+    // Maximum delta between specimen
+    double MAX_DELTA = 3;
+    // Importance of excess genes for the delta
     double WEIGHT_C1 = 1.0;
-    /// Importance of disjoint genes for the delta
+    // Importance of disjoint genes for the delta
     double WEIGHT_C2 = 1.0;
     /** Importance of average weight difference between matching genes for the 
      * delta */
-    double WEIGHT_C3 = 1.0;
-    /** Propability of a change in structure as opposed to a change in 
-     * connections */
-    double PROP_STRUCTURE = 0.5;
-    /// Propability of creating a new connection as opposed to splitting one
-    double PROP_CONNECTION = 0.5;
-    /// Propability of toggling a connection instead of adjusting weight
-    double PROP_TOGGLE = 0.5;
-    /// Percentage of a species to be killed before mating and mutating
-    double KILL_OFF_PORTION = 0.5;
+    double WEIGHT_C3 = .4;
     
-    /// List of all specimen in a generation
-    List<NEATNetwork> nets = new ArrayList<>();
-    /// Global tracker of innovations made by the networks
+    //// GENERATION ADVANCEMENT PARAMETERS
+    // Speciation threshold
+    int CHAMPION_THRESHOLD = 5;
+    // Portion of a species to be added as a mutation
+    double PORTION_MUTATION = .25;
+    
+    //// MUTATION PARAMETERS
+    // Maximum perturbance of a weight
+    double MAX_PERTURBANCE = 8.0;
+    // Probability of adding a new connection
+    double PROP_CONNECTION = .5;
+    // Probability of carrying over the disabled epigene
+    double PROP_KEEP_DISABLED = .75;
+    // Probability of adding a new node
+    double PROP_NODE = .5;
+    // Probability of mutating the weights
+    double PROP_WEIGHT = .8;
+    // Probability of getting uniform weight perturbance
+    double PROP_WEIGHT_UNIFORM = .9;
+    // Size of the range of a random weight
+    double RANDOM_WEIGHT_RANGE = 5.0;
+    
+    //// PROCESSING PARAMETERS
+    // The Sigmoid modifier to tune the sigmoid activation
+    double SIGMOID_MODIFIER = 4.9;
+    
+    
+    // List of all specimen in a generation
+    public List<NEATNetwork> nets = new ArrayList<>();
+    // Global tracker of innovations made by the networks
     List<IntegerPair> innovations = new ArrayList<>();
     
-    /// Amount of networks in any given generation
+    // Amount of networks in any given generation
     int networkCount;
-    /// Amount of input nodes in a network
+    // Amount of input nodes in a network
     int inputCount;
-    /// Amount of output values in a network
+    // Amount of output values in a network
     int outputCount;
     
     // *STRUCTORS --------------------------------------------------------------
     
-    // IDEA: Add a seed for randomisation
-    // IDEA: Implement BIAS
+    // TODO: Implement BIAS
     /**
      * Constructor for a new NEAT run
      * @param inNodes Amount of input nodes
      * @param outNodes Amount of output nodes
      * @param networks Amount of simultaneous networks
-     * @param bias decide wether or not to use a bias
+     * @param bias decide whether or not to use a bias
      */
     public NEAT(int inNodes, int outNodes,int networks, boolean bias)
     {
@@ -60,6 +79,8 @@ public class NEAT{
     
     // METHODS -----------------------------------------------------------------
     
+    // TODO: Allow to extract network
+    
     /**
      * Add the fitness to a specified net
      * @param value Fitness value to be added
@@ -70,7 +91,6 @@ public class NEAT{
         nets.get(index).addFitness(value);
     }
     
-    // IDEA: Hide from users
     /**
      * Tries to add a new innovation. If the innovation already existed return
      * index + 1 as innovation number. Else return the new innovation number.
@@ -80,6 +100,10 @@ public class NEAT{
      */
     public int addInnovation(int inNodeIndex, int outNodeIndex)
     {
+    	if(inNodeIndex == -1 || outNodeIndex == -1) {
+    		System.out.print("");
+    	}
+    	
         IntegerPair newInnovation = new IntegerPair(inNodeIndex,outNodeIndex);
         
         for(IntegerPair ip : innovations)
@@ -101,23 +125,24 @@ public class NEAT{
     {
         // Sort list for fitness
         Collections.sort(nets, (NEATNetwork a, NEATNetwork b) -> {
-            return a.fitness > b.fitness ? 1 : (a.fitness < b.fitness ? -1 : 0);
+            return a.fitness > b.fitness ? -1 : (a.fitness < b.fitness ? 1 : 0);
         });
         
+
         // Generate species and assign nets to them
         List<List<NEATNetwork>> speciesList = new ArrayList<>();
         
         // Get the list of all specimen
-        for(NEATNetwork net : nets)
+        for(NEATNetwork specimen : nets)
         {
             // Check every species for affiliation
             boolean hasFoundSpecies = false;
             for(List<NEATNetwork> species : speciesList)
             {
                 // If the network fits a species add it to it.
-                if(species.get(0).compareCompatibility(net, WEIGHT_C1, WEIGHT_C2, WEIGHT_C3) < MAX_DELTA)
+                if(species.get(0).compareCompatibility(specimen, WEIGHT_C1, WEIGHT_C2, WEIGHT_C3) < MAX_DELTA)
                 {
-                    species.add(net);
+                    species.add(specimen);
                     hasFoundSpecies = true;
                     break;
                 }
@@ -127,7 +152,7 @@ public class NEAT{
             if(!hasFoundSpecies)
             {
                 List<NEATNetwork> newSpecies = new ArrayList<>();
-                newSpecies.add(net);
+                newSpecies.add(specimen);
                 speciesList.add(newSpecies);
             }
         }
@@ -135,80 +160,86 @@ public class NEAT{
         // Clear the network list
         nets.clear();
         
-        // Share the fitness in the species
-        double absoluteFitness = 0.0;
-        
-        for (List<NEATNetwork> species : speciesList)
-        {
-            for(NEATNetwork net : species)
-            {
-                net.fitness /= (double) species.size();
-                absoluteFitness += net.fitness;
-            }
+        // Calculate the amount for each species
+        Map<Integer,Double> fitnesses = new TreeMap<Integer,Double>();
+        fitnesses.put(-1, 0.0);
+        for(int i = 0; i < speciesList.size(); i++) {
+        	fitnesses.put(i, 0.0);
+        	
+        	for(NEATNetwork specimen : speciesList.get(i)) {
+        		fitnesses.put(i, fitnesses.get(i) + specimen.fitness);
+        	}
+        	
+        	fitnesses.put(i, fitnesses.get(i) / speciesList.get(i).size());
+        	fitnesses.put(-1, fitnesses.get(i) + fitnesses.get(-1));
         }
         
-        // Remove up to the @KILL_OF_PORTION worst of the species and
-        // figure out how to generate the new specimen
-        for(List<NEATNetwork> species : speciesList)
-        {
-            // Get the species portion of the fitness
-            double speciesFitness = 0.0;
-            for(NEATNetwork specimen : species)
-            {
-                speciesFitness += specimen.fitness;
-            }
-            double fitnessPortion = speciesFitness / absoluteFitness;
-            
-            // Kill off the @KILL_OFF_PORTION of a species except if the species
-            // only consists of one specimen
-            if(species.size() == 1)
-            {
-                species.get(0).mutate();
-                nets.add(species.get(0));
-                if(nets.size() == networkCount) {break;}
-                continue;
-            }
-            
-            int addCount = (int) (networkCount * fitnessPortion);
-            if(addCount + nets.size() > networkCount)
-            {
-                addCount += nets.size() - networkCount;
-            }
-            
-            double specimenPortion = 1.0 / species.size();
-            for(double d = 0.0; d < KILL_OFF_PORTION; d += specimenPortion)
-            {
-                species.remove(species.size() - 1);
-            }
-            
-            // Add offspring from every species up to the wanted counted 
-            int added = 0;
-            for(int i = 0; i < species.size() - 1; i++)
-            {
-                for(int j = i+1; j < species.size(); j++)
-                {
-                    nets.add(species.get(0).mate(species.get(i),species.get(j)));
-                    added++;
-                    if(added == addCount){break;}
-                }
-                if(added == addCount){break;}
-            }
-            if(added == addCount){continue;}
-            
-            // Fill up remaining spots with mutations
-            for(int i = 0; i < species.size(); i++)
-            {
-                species.get(i).mutate();
-                nets.add(species.get(i));
-                added++;
-                if(added == addCount){break;}
-            }
+        for(int i = 0; i < speciesList.size(); i++) {
+        	fitnesses.put(i, (fitnesses.get(i) * networkCount) / fitnesses.get(-1));
         }
         
-        // Should 100 nets not have been reached add new basic networks
-        for(int i = nets.size(); i < networkCount; i++)
-        {
-            nets.add(new NEATNetwork(inputCount, outputCount, this));
+        Map<Integer,Long> amounts = new TreeMap<Integer,Long>();
+        for(int i = 0; i < speciesList.size(); i++) {
+        	amounts.put(i, Math.round(fitnesses.get(i)));
+        	double adjusment = (fitnesses.get(i) - Math.round(fitnesses.get(i))) / (speciesList.size() - i);
+        	for(int j = i + 1; j < speciesList.size(); j++) {
+        		fitnesses.put(j, fitnesses.get(j) + adjusment);
+        	}
+        }
+        
+        // Carry over the champion if the species is big enough
+        for(int i = 0; i < speciesList.size(); i++) {
+        	if((speciesList.get(i).size() >= CHAMPION_THRESHOLD || i == 0) && amounts.get(i) >= 1) {
+        		nets.add(new NEATNetwork(speciesList.get(i).get(0)));
+        		amounts.put(i, amounts.get(i) - 1);
+        	}
+        }
+        
+        for(int i = 0; i < speciesList.size(); i++) {
+        	 
+        	if(amounts.get(i) == 0) {continue;}
+        	
+        	if(amounts.get(i) == 1) {
+        		speciesList.get(i).get(0).mutate();
+        		nets.add(new NEATNetwork(speciesList.get(i).get(0)));
+        		continue;
+        	}
+        	
+        	// Mate until the portion of offspring through mating is reached
+        	long mateAmount = Math.round(amounts.get(i) * (1 - PORTION_MUTATION));
+        	if(mateAmount != 0 && speciesList.get(i).size() > 1) {
+        		amounts.put(i, amounts.get(i) - mateAmount);
+        		while(mateAmount > 0) {
+        			for(int j = 1; j < speciesList.get(i).size(); j++) {
+        				for(int k = 0; k < j; k++) {
+        					nets.add(speciesList.get(0).get(0).mate(speciesList.get(i).get(j), speciesList.get(i).get(k)));
+        					mateAmount--;
+        					if(mateAmount == 0) {break;}
+        				}
+        		
+        				if(mateAmount == 0) {break;}
+        			}
+        		}
+        	}
+        	
+        	// Add mutated copies to fill the rest of the species to the next 
+        	// generation
+        	while(amounts.get(i) > 0) {
+        		for(int j = 0; j < speciesList.get(i).size(); j++) {
+        			NEATNetwork mutated = new NEATNetwork(speciesList.get(i).get(j));
+        			mutated.mutate();
+        			nets.add(mutated);
+        			amounts.put(i, amounts.get(i) - 1);
+        			
+        			if(amounts.get(i) == 0) {break;}
+        		}
+        	}
+        }
+        
+        // Should for whatever reason not all slots been filled, like through
+        // rounding errors, add new empty nets
+        while(nets.size() < networkCount) {
+        	nets.add(new NEATNetwork(inputCount, outputCount, this));
         }
     }
     
@@ -220,11 +251,11 @@ public class NEAT{
     {
         double maxFitness = Double.NEGATIVE_INFINITY;
         
-        for(NEATNetwork net : nets)
+        for(NEATNetwork specimen : nets)
         {
-            if( net.fitness > maxFitness)
+            if( specimen.fitness > maxFitness)
             {
-                maxFitness = net.fitness;
+                maxFitness = specimen.fitness;
             }
         }
         
@@ -236,14 +267,10 @@ public class NEAT{
      * result.
      * @param inputs Array of double values to be used in the input nodes.
      * @param index Index of the network in the "nets"-list
-     * @throws IllegalArgumentException If the input array is not congruent to
-     * the inputs an IllegalArgumentException is thrown.
      * @return Returns an array the output value. 
      */
     public double[] processNetwork(double[] inputs,int index)
-    {
-        if(inputs.length != inputCount){throw new IllegalArgumentException();}
-        
+    {   
         return nets.get(index).process(inputs);
     }
     
@@ -285,7 +312,7 @@ public class NEAT{
         /**
          * Compare two integer pairs
          * @param p The pair to be compared to
-         * @return Returns wether the two integer pairs are equal
+         * @return Returns whether the two integer pairs are equal
          */
         public boolean compare(IntegerPair p)
         {
