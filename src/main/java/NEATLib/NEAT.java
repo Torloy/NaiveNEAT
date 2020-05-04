@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class NEAT{
-	//// DELTA PARAMETERS
+	//// Speciation PARAMETERS
     // Maximum delta between specimen
     double MAX_DELTA = 3;
     // Importance of excess genes for the delta
@@ -40,13 +40,13 @@ public class NEAT{
     // Size of the range of a random weight
     double RANDOM_WEIGHT_RANGE = 5.0;
     
-    //// PROCESSING PARAMETERS
+    //// PROCESSING PARAMETER
     // The Sigmoid modifier to tune the sigmoid activation
     double SIGMOID_MODIFIER = 4.9;
     
     
     // List of all specimen in a generation
-    public List<NEATNetwork> nets = new ArrayList<>();
+    List<NEATNetwork> nets = new ArrayList<>();
     // Global tracker of innovations made by the networks
     List<IntegerPair> innovations = new ArrayList<>();
     
@@ -56,24 +56,27 @@ public class NEAT{
     int inputCount;
     // Amount of output values in a network
     int outputCount;
+    // Whether the BIAS is used
+    boolean usesBias = false;
     
     // *STRUCTORS --------------------------------------------------------------
     
-    // TODO: Implement BIAS
     /**
      * Constructor for a new NEAT run
      * @param inNodes Amount of input nodes
      * @param outNodes Amount of output nodes
      * @param networks Amount of simultaneous networks
-     * @param bias decide whether or not to use a bias
+     * @param isBiasEnabled decide whether or not to use a bias
      */
-    public NEAT(int inNodes, int outNodes,int networks, boolean bias)
+    public NEAT(int inNodes, int outNodes,int networks, boolean isBiasEnabled)
     {
         networkCount = networks;
         inputCount = inNodes;
         outputCount = outNodes;
+        usesBias = isBiasEnabled;
+        
         for(int i = 0; i < networks; i++){
-            nets.add(new NEATNetwork(inNodes,outNodes,this));
+            nets.add(new NEATNetwork(inNodes + (isBiasEnabled ? 1 : 0),outNodes,this));
         }
     }
     
@@ -247,7 +250,7 @@ public class NEAT{
      * Print the current maximum fitness
      * @param high Highest previously achieved value
      */
-    public void printMaxFitness()
+    public double getMaxFitness()
     {
         double maxFitness = Double.NEGATIVE_INFINITY;
         
@@ -259,7 +262,7 @@ public class NEAT{
             }
         }
         
-        System.out.println(maxFitness);
+        return maxFitness;
     }
     
     /**
@@ -271,6 +274,16 @@ public class NEAT{
      */
     public double[] processNetwork(double[] inputs,int index)
     {   
+    	if(usesBias) {
+    		double[] inputsBiased = new double[inputs.length + 1];
+    		for(int i = 0; i < inputs.length; i++) {
+    			inputsBiased[i] = inputs[i];
+    		}
+    		
+    		inputsBiased[inputs.length] = 1.0;
+    		return nets.get(index).process(inputsBiased);
+    	}
+    	
         return nets.get(index).process(inputs);
     }
     

@@ -11,19 +11,19 @@ import java.util.TreeMap;
  */
 public class NEATNetwork
 {
-    /// Reference to the NEAT instance
+    // Reference to the NEAT instance
     NEAT reference;
     
-    /// List of node-genes in this network
+    // List of node-genes in this network
     public List<Node> nodes = new ArrayList<>();
-    /// List of connection-genes in this network
+    // List of connection-genes in this network
     public List<Connection> connections = new ArrayList<>();
     
-    /// Number of output nodes in this network
+    // Number of output nodes in this network
     int outputs = 0;
-    /// Number of input nodes in this network
+    // Number of input nodes in this network
     int inputs = 0;
-    /// Fitness of this network
+    // Fitness of this network
     public double fitness = 0.0;
     
     // *STRUCTORS --------------------------------------------------------------
@@ -578,7 +578,7 @@ public class NEATNetwork
         {
         	if(!hasBeenActivated) 
         	{
-        		currentValue = 1.0 / (1.0 + Math.pow(Math.E,-currentValue * reference.SIGMOID_MODIFIER));
+        		currentValue = 1.0 / (1.0 + Math.pow(Math.E,-(currentValue) * reference.SIGMOID_MODIFIER));
         		hasBeenActivated = true;
         	}
         }
