@@ -205,7 +205,7 @@ public class NEAT
         
         for(int i = 0; i < speciesList.size(); i++)
         {
-        	if(speciesList.get(i).size() < 0) 
+        	if(speciesList.get(i).size() > 0) 
         	{
         		remainingSpecies++;
         	}

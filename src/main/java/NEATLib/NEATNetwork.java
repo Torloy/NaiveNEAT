@@ -393,12 +393,11 @@ public class NEATNetwork
     		insertNode.nodeID = nodes.indexOf(insertNode);
           
     		// Add a new connection towards the new node
-    		connections.add(new Connection(insertNode, original.outRef, true));
+    		Connection newOut = new Connection(insertNode, original.outRef, true);
+    		newOut.weight = original.weight;
+    		connections.add(newOut);
           
-    		// Add a new connection with weight 1 from the new node
-    		Connection newIn = new Connection(original.inRef, insertNode, true);
-    		newIn.weight = 1;
-    		connections.add(newIn);
+    		connections.add(new Connection(original.inRef, insertNode, true));
     	}
     }
     
