@@ -177,13 +177,16 @@ public class NEAT
         // Calculate the amount for each species
         Map<Integer,Double> fitnesses = new TreeMap<Integer,Double>();
         fitnesses.put(-1, 0.0);
-        for(int i = 0; i < speciesList.size(); i++) {
-        	if(speciesList.get(i).size() == 0) {
+        for(int i = 0; i < speciesList.size(); i++) 
+        {
+        	if(speciesList.get(i).size() == 0) 
+        	{
         		continue;
         	}
         	fitnesses.put(i, 0.0);
         	
-        	for(NEATNetwork specimen : speciesList.get(i)) {
+        	for(NEATNetwork specimen : speciesList.get(i)) 
+        	{
         		fitnesses.put(i, fitnesses.get(i) + specimen.fitness);
         	}
         	
