@@ -56,23 +56,12 @@ public class NEATNetwork
             // Add the input nodes as possible connections
             for(int j = 0; j < inNodes;j++)
             {
-                n.possibleConnections.add(nodes.get(j));
+                //n.possibleConnections.add(nodes.get(j));
+                connections.add(new Connection(nodes.get(j),n,true));
             }
             
             nodes.add(n);
         }
-        
-        // Add all possible connections towards the output nodes
-        for(int i = 0; i < inNodes; i++)
-        {
-            for(int j = inNodes; j < inNodes + outNodes; j++)
-            {
-                nodes.get(i).possibleConnections.add(nodes.get(j));
-            }
-        }
-        
-        // Mutate the network for the first time
-        mutate();
     }
     
     /**
@@ -163,7 +152,9 @@ public class NEATNetwork
             double weightC3)
     {
         // Number of connection genes in the bigger specimen
-        int n = connections.size() > b.connections.size() ? connections.size() : b.connections.size();
+    	List<Connection> biggerSet = connections.size() > b.connections.size() ? connections : b.connections;
+    	List<Connection> smallerSet = connections.size() <= b.connections.size() ? connections : b.connections;
+        int n = biggerSet.size();
         
         /* Number of excess genes with innovation numbers bigger than the 
          * highest of the other genome */
@@ -187,25 +178,25 @@ public class NEATNetwork
         
         // Calculate the different values
         int index = 0;
-        for(Connection c : connections)
+        for(Connection c : biggerSet)
         {
             // If the index is at the end of b but not c add excess genes
-            if(index == b.connections.size())
+            if(index == smallerSet.size())
             {
                 excess++;
             } 
             /* if the innovation numbers match increase the matching numbers and
              * add the absolute weight difference */
             else if(c.innovationNumber == 
-                    b.connections.get(index).innovationNumber)
+                    smallerSet.get(index).innovationNumber)
             {
                 matching++;
-                weightDifference += Math.abs(c.weight - b.connections.get(index).weight);
+                weightDifference += Math.abs(c.weight - smallerSet.get(index).weight);
                 index++;
             } 
             // if the innovation number is smaller add a disjoint gene    
             else if(c.innovationNumber < 
-                    b.connections.get(index).innovationNumber)
+                    smallerSet.get(index).innovationNumber)
             {
                 disjoint++;
             } 
@@ -214,13 +205,13 @@ public class NEATNetwork
             else {
                 int temp = 0;
                 
-                while(c.innovationNumber > b.connections.get(index).innovationNumber){
+                while(c.innovationNumber > smallerSet.get(index).innovationNumber){
                     temp++;
                     index++;
-                    if(index == b.connections.size()){
+                    if(index == smallerSet.size()){
                         excess += temp;
                         break;
-                    } else if(c.innovationNumber <= b.connections.get(index).innovationNumber){
+                    } else if(c.innovationNumber <= smallerSet.get(index).innovationNumber){
                         disjoint += temp;
                         break;
                     }
@@ -233,8 +224,8 @@ public class NEATNetwork
         	weightDifference = weightDifference / matching;
         }
         
-        return    (weightC1 * excess / n) 
-                + (weightC2 * disjoint / n) 
+        return    (weightC1 * excess / (reference.SMALL_GENOME_CUTOFF > smallerSet.size() ? 1 : n)) 
+                + (weightC2 * disjoint / (reference.SMALL_GENOME_CUTOFF > smallerSet.size() ? 1 : n)) 
                 + (weightC3 * weightDifference);
     }
     
@@ -347,7 +338,7 @@ public class NEATNetwork
     			connections.add(new Connection(n1,n2,true));
     		}
     		
-    		double perturbance = ((Math.random() * 2) - 1) * reference.MAX_PERTURBANCE;
+    		double perturbance = ((Math.random() * 2) - 1) * reference.RANDOM_WEIGHT_RANGE;
     		
     		for(Connection c : connections) {
     			if(Math.random() < reference.PROP_WEIGHT_UNIFORM) {
@@ -362,7 +353,7 @@ public class NEATNetwork
     	
     	// Change the weights of the connections if they have to be changed at all
     	if(Math.random() < reference.PROP_WEIGHT) {
-    		double perturbance = ((Math.random() * 2) - 1) * reference.MAX_PERTURBANCE;
+    		double perturbance = ((Math.random() * 2) - 1) * reference.RANDOM_WEIGHT_RANGE;
     		
     		for(Connection c : connections) {
     			if(Math.random() < reference.PROP_WEIGHT_UNIFORM) {
@@ -380,7 +371,7 @@ public class NEATNetwork
     		Node n2 = n1.getPossibility();
     		if(n2 == null) {return;}
           
-    		if(n1.t == Type.OUTPUT || n2.layerNumber < n1.layerNumber)
+    		if(n2.t == Type.INPUT || (n2.layerNumber < n1.layerNumber && !reference.DOES_ALLOW_RECURRENT))
     		{
     			connections.add(new Connection(n2,n1,true));
     			return;
@@ -394,6 +385,7 @@ public class NEATNetwork
     		// Get the original connection and disable it
     		Connection original = connections.get((int) (Math.random() * connections.size()));
     		original.enabled = false;
+    		original.outRef.inputValues.remove(original.inRef.nodeID);
           
     		// Add a new node
     		Node insertNode = new Node(Type.HIDDEN, original.inRef, original.outRef, 0);
@@ -440,11 +432,8 @@ public class NEATNetwork
         // Go through the connections and assign the values
         for(Connection c : connections)
         {
-            if(c.inRef.t != Type.INPUT)
-            {
-                c.inRef.activate();
-            }
-            c.outRef.currentValue += c.inRef.currentValue * c.weight;
+            c.inRef.activate();
+            c.outRef.inputValues.put(c.inRef.nodeID, c.inRef.currentValue * c.weight);
         }
         
         // Get the values in the output
@@ -488,7 +477,6 @@ public class NEATNetwork
         public Connection(Node input, Node output, boolean enabled)
         {
             // Check whether the connection is the right way around
-            input.checkType(Type.OUTPUT);
             output.checkType(Type.INPUT);
             
             // Set the proper references
@@ -515,6 +503,8 @@ public class NEATNetwork
     {
         // Possible connections to be made with other nodes
         List<Node> possibleConnections = new ArrayList<Node>();
+        // Holding the current input values
+        Map<Integer, Double> inputValues = new TreeMap<Integer, Double>();
         // Type of the node
         Type t;
         // Layer number to keep track of the sequence 
@@ -576,8 +566,15 @@ public class NEATNetwork
          */
         public void activate()
         {
-        	if(!hasBeenActivated) 
+        	if(!hasBeenActivated && t != Type.INPUT) 
         	{
+        		currentValue = 0;
+        		
+        		for(Double value : inputValues.values())
+        		{
+        			currentValue += value;
+        		}
+        		
         		currentValue = 1.0 / (1.0 + Math.pow(Math.E,-(currentValue) * reference.SIGMOID_MODIFIER));
         		hasBeenActivated = true;
         	}
